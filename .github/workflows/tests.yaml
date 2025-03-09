@@ -1,0 +1,65 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install tox
+        run: pip install tox~=4.2
+
+      - name: Run linting
+        run: tox -e lint
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tox-environment: [ 'static', 'unit', 'pebble' ]
+        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12', '3.13' ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if we need Pebble
+        # we need this as a step because the matrix isn't available in `if:`
+        run: |
+          if ${{ matrix.tox-environment }} == 'pebble'; then
+            echo 'NEEDS_PEBBLE=true' >> $GITHUB_ENV
+          fi
+
+      - name: Set up Go
+        if: ${{ env.NEEDS_PEBBLE == 'true' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          # To suppress the "Restore cache failed" error, since there is no go.sum file here.
+          cache: false
+
+      - name: Install Pebble
+        if: ${{ env.NEEDS_PEBBLE == 'true' }}
+        run: go install github.com/canonical/pebble/cmd/pebble@master
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install tox
+        run: pip install tox~=4.2
+
+      - name: Run ${{ matrix.tox-environment }} tests
+        run: tox -e ${{ matrix.tox-environment }}
