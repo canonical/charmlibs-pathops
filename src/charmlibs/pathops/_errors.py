@@ -85,6 +85,11 @@ def raise_not_a_directory(msg: str, from_: BaseException | None = None) -> NoRet
     raise NotADirectoryError(errno.ENOTDIR, os.strerror(errno.ENOTDIR), msg) from from_
 
 
+def raise_if_matches_not_a_directory(error: pebble.Error, msg: str) -> None:
+    if matches_not_a_directory(error):
+        raise_not_a_directory(msg, from_=error)
+
+
 def raise_if_matches_permission(error: pebble.Error, msg: str) -> None:
     if isinstance(error, pebble.PathError) and error.kind == 'permission-denied':
         raise PermissionError(errno.EPERM, os.strerror(errno.EPERM), msg) from error

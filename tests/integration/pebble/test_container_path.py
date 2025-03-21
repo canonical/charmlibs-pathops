@@ -320,6 +320,17 @@ class TestWriteBytes:
         with pytest.raises(FileNotFoundError):
             ContainerPath(path, container=container).write_bytes(b'')
 
+    def test_parent_isnt_a_dir(self, container: ops.Container, tmp_path: pathlib.Path):
+        parent = tmp_path / 'parent'
+        assert not parent.exists()
+        parent.touch()
+        assert not parent.is_dir()
+        path = parent / 'filename'
+        with pytest.raises(NotADirectoryError):
+            path.write_bytes(b'')
+        with pytest.raises(NotADirectoryError):
+            ContainerPath(path, container=container).write_bytes(b'')
+
 
 @pytest.mark.parametrize(('filename', 'contents'), tuple(utils.TEXT_FILES.items()))
 def test_write_text(

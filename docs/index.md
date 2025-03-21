@@ -1,8 +1,8 @@
 # Pathops
 
 ```{toctree}
-:maxdepth: 2
-:hidden: true
+:maxdepth: 3
+:hidden: false
 
 reference/index
 ```

@@ -5,6 +5,12 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / 'src/charmlibs'))  # So that sphinx.ext.autodoc can find code.
 
+def setup(app):
+    app.add_css_file('project_specific.css')
+
+ # not worthwhile because it doesn't replace references in function signatures
+ # open issue: https://github.com/sphinx-doc/sphinx/issues/10785
+ # autodoc_type_aliases = {'StrPathLike': 'str | os.PathLike[str]'}
 
 # Configuration for the Sphinx documentation builder.
 # All configuration specific to your project should be done in this file.
@@ -110,7 +116,7 @@ html_context = {
     # TODO: If there's no such website,
     #       remove the {{ product_page }} link from the page header template
     #       (usually .sphinx/_templates/header.html; also, see README.rst).
-    "product_page": "juju.is",
+    "product_page": "github.com/canonical/charmlibs-pathops",
     # Product tag image; the orange part of your logo, shown in the page header
     #
     # TODO: [@dwilding DONE] To add a tag image, uncomment and update as needed.
@@ -250,8 +256,18 @@ extensions = [
     "sphinxcontrib.cairosvgconverter",
     "sphinx_last_updated_by_git",
     "sphinx.ext.autodoc",
+    'sphinx.ext.intersphinx',
     "sphinx.ext.napoleon",
 ]
+
+intersphinx_mapping = {
+    'ops': ('https://ops.readthedocs.io/en/latest', None),
+    'python': ('https://docs.python.org/3', None),
+    'juju': ('https://canonical-juju.readthedocs-hosted.com/en/latest', None),
+    'charmcraft': ('https://canonical-charmcraft.readthedocs-hosted.com/en/latest', None),
+}
+
+maximum_signature_line_length = 80
 
 # Excludes files or directories from processing
 
@@ -342,9 +358,22 @@ autoclass_content = 'class'
 # 'groupwise') or by source order (value 'bysource'). The default is
 # alphabetical.
 autodoc_member_order = 'alphabetical'
+#autodoc_member_order = 'groupwise'
+#autodoc_member_order = 'bysource'
 
 autodoc_default_options = {
     'members': None,  # None here means "yes"
+    'special-members': None,  # meaning all
+    'exclude-members': (
+        '__abstractmethods__,'
+        '__dict__,'
+        '__init__,'
+        '__module__,'
+        '__parameters__,'
+        '__repr__,'
+        '__subclasshook__,'
+        '__weakref__,'
+    ),
     'undoc-members': None,
     'show-inheritance': None,
 }

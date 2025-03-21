@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities for creating and working with pebble.FileInfo objects."""
+"""Utilities for creating and working with :class:`ops.pebble.FileInfo` objects."""
 
 from __future__ import annotations
 

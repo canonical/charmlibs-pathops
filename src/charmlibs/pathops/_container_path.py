@@ -44,6 +44,22 @@ class RelativePathError(ValueError):
 
 
 class ContainerPath:
+    r"""Implementation of :class:`PathProtocol` for Juju Charm workload containers.
+
+    Args:
+        \*parts: :class:`str` or :class:`os.PathLike`.
+        container: :class:`ops.Container` used to communicate with workload container.
+            Required, keyword only argument.
+
+    Raises:
+        RelativePathError: If instantiated with a relative path.
+
+    ::
+
+        ContainerPath(pathlib.Path('/foo'), container=self.unit.get_container('c'))
+        ContainerPath('/', 'foo', container=self.unit.get_container('c'))
+    """
+
     def __init__(self, *parts: StrPathLike, container: ops.Container) -> None:
         self._container = container
         self._path = pathlib.PurePosixPath(*parts)
@@ -57,6 +73,7 @@ class ContainerPath:
     #############################
 
     def __hash__(self) -> int:
+        """Return the hash of (container-name, path)."""
         return hash((self._container.name, self._path))
 
     def __repr__(self) -> str:
@@ -64,27 +81,33 @@ class ContainerPath:
         return f"{type(self).__name__}('{self._path}', container={container_repr})"
 
     def __str__(self) -> str:
+        """Return the string representation of the path in the container."""
         return self._path.__str__()
 
     def as_posix(self) -> str:
+        """Return the string representation of the path in the container."""
         return self._path.__str__()
 
     def __lt__(self, other: Self) -> bool:
+        """Compare paths if other is a ContainerPath on the same container."""
         if not self._can_compare(other):
             return NotImplemented
         return self._path < other._path
 
     def __le__(self, other: Self) -> bool:
+        """Compare paths if other is a ContainerPath on the same container."""
         if not self._can_compare(other):
             return NotImplemented
         return self._path <= other._path
 
     def __gt__(self, other: Self) -> bool:
+        """Compare paths if other is a ContainerPath on the same container."""
         if not self._can_compare(other):
             return NotImplemented
         return self._path > other._path
 
     def __ge__(self, other: Self) -> bool:
+        """Compare paths if other is a ContainerPath on the same container."""
         if not self._can_compare(other):
             return NotImplemented
         return self._path >= other._path
@@ -93,6 +116,7 @@ class ContainerPath:
         return isinstance(other, ContainerPath) and other._container.name == self._container.name
 
     def __eq__(self, other: object, /) -> bool:
+        """Compare paths if other is a ContainerPath on the same container, else return False."""
         if not isinstance(other, ContainerPath) or self._container.name != other._container.name:
             return False
         return self._path == other._path
@@ -115,7 +139,7 @@ class ContainerPath:
         return self._path.is_absolute()
 
     def match(self, path_pattern: str) -> bool:
-        """Whether the patch matches the given pattern.
+        """Whether the path matches the given pattern.
 
         If the pattern is relative, matching is done from the right, otherwise the
         entire path is matched. The recursive wildcard '**' is not supported.
@@ -139,16 +163,21 @@ class ContainerPath:
         r"""Return a new ContainerPath with the same container and the new args joined to its path.
 
         Args:
-            other: Any number of path-like objects or strs.
+            other: One or more :class:`str` or :class:`os.PathLike` objects.
                 If zero are provided, an effective copy of this ContainerPath object is returned.
                 \*other is joined to this object's path as with os.path.join. This means that if
                 any member of other is an absolute path, all the previous components, including
                 this object's path, are dropped entirely.
 
         Returns:
-            A new :class:`ContainerPath` with the same ops.Container object and its path updated
-            with \*other.
+            A new :class:`ContainerPath` with the same :class:`ops.Container` object, with its path
+            updated with \*other as follows. For each item in other, if it is a relative path, it
+            is appended to the current path. If it is an absolute path, it replaces the current
+            path.
 
+        .. warning::
+            :class:`ContainerPath` is not :class:`os.PathLike`. A :class:`ContainerPath` instance
+            is not a valid value for ``other``, and will result in an error.
         """
         return self.with_segments(self._path, *other)
 
@@ -187,13 +216,13 @@ class ContainerPath:
     def read_text(self, *, newline: str | None = None) -> str:
         r"""Read a remote file as text and return the contents as a string.
 
-        ..note::
+        .. note::
             Compared to pathlib.Path.read_text, this method drops the encoding and errors args.
-            The encoding is assumed to be 'utf-8', and any errors encountered will be raised.
+            The encoding is assumed to be utf-8, and any errors encountered will be raised.
 
         Args:
-            newline: if None (default), all newlines ('\r\n', '\r', '\n') are replaced with '\n'.
-                Otherwise the file contents are returned unmodified.
+            newline: if ``None`` (default), all newlines ``('\r\n', '\r', '\n')`` are replaced
+                with ``'\n'``. Otherwise the file contents are returned unmodified.
 
         Returns:
             The contents of the the path as a string.
@@ -202,7 +231,7 @@ class ContainerPath:
             FileNotFoundError: if the parent directory does not exist.
             IsADirectoryError: if the target is a directory.
             PermissionError: if the Pebble user does not have permissions for the operation.
-            PebbleConnectionError: if the remote Pebble client cannot be reached.
+            ops.pebble.ConnectionError: if the remote Pebble client cannot be reached.
         """
         text = self._pull(text=True)
         if newline is None:
@@ -219,7 +248,7 @@ class ContainerPath:
             FileNotFoundError: if the parent directory does not exist.
             IsADirectoryError: if the target is a directory.
             PermissionError: if the Pebble user does not have permissions for the operation.
-            PebbleConnectionError: if the remote Pebble client cannot be reached.
+            ops.pebble.ConnectionError: if the remote Pebble client cannot be reached.
         """
         return self._pull(text=False)
 
@@ -341,9 +370,9 @@ class ContainerPath:
     ) -> int:
         """Write the provided data to the corresponding path in the remote container.
 
-        ..note::
-            Compared to pathlib.Path.write_bytes, this method adds mode, user and group args.
-            These are forwarded to Pebble, which sets these on file creation.
+        .. note::
+            Compared to :meth:`pathlib.Path.write_bytes`, this method adds ``mode``, ``user``
+            and ``group`` args. These are forwarded to Pebble, which sets these on file creation.
 
         Args:
             data: The bytes to write. If data is a bytearray or memoryview, it will be converted
@@ -357,8 +386,9 @@ class ContainerPath:
         Raises:
             FileNotFoundError: if the parent directory does not exist.
             LookupError: if the user or group is unknown.
+            NotADirectoryError: if the parent exists as a non-directory file.
             PermissionError: if the Pebble user does not have permissions for the operation.
-            PebbleConnectionError: if the remote Pebble client cannot be reached.
+            ops.pebble.ConnectionError: if the remote Pebble client cannot be reached.
         """
         if isinstance(data, (bytearray, memoryview)):
             # TODO: update ops to correctly test for bytearray and memoryview in push
@@ -376,6 +406,7 @@ class ContainerPath:
             _errors.raise_if_matches_lookup(e, msg=e.message)
             msg = repr(self)
             _errors.raise_if_matches_file_not_found(e, msg=msg)
+            _errors.raise_if_matches_not_a_directory(e, msg=msg)
             _errors.raise_if_matches_permission(e, msg=msg)
             raise
         return len(data)
@@ -390,10 +421,11 @@ class ContainerPath:
     ) -> int:
         """Write the provided string to the corresponding path in the remote container.
 
-        ..note::
-            Compared to pathlib.Path.write_text, this method drops the encoding and errors args
-            to keep the API simple. The Python 3.10+ newline argument is not implemented. The args
-            mode, user, and group are forwarded to Pebble, which sets these on file creation.
+        .. note::
+            Compared to :meth:`pathlib.Path.write_text`, this method drops the ``encoding`` and
+            ``errors`` args to simplify the API. The Python 3.10+ ``newline`` argument is not
+            implemented. The args ``mode``, ``user`` and ``group`` are added, and are forwarded
+            to Pebble, which sets these on file creation.
 
         Args:
             data: The string to write. Will be encoded as utf-8, raising any errors.
@@ -407,8 +439,9 @@ class ContainerPath:
         Raises:
             LookupError: if the user or group is unknown.
             FileNotFoundError: if the parent directory does not exist.
+            NotADirectoryError: if the parent exists as a non-directory file.
             PermissionError: if the Pebble user does not have permissions for the operation.
-            PebbleConnectionError: if the remote Pebble client cannot be reached.
+            ops.pebble.ConnectionError: if the remote Pebble client cannot be reached.
         """
         encoded_data = data.encode()
         return self.write_bytes(encoded_data, mode=mode, user=user, group=group)
