@@ -8,28 +8,96 @@ on:
   workflow_call:
 
 jobs:
+  packages:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.packages.outputs.changed }}
+      unit: ${{ steps.packages.outputs.unit }}
+      pebble: ${{ steps.packages.outputs.pebble }}
+      juju: ${{ steps.packages.outputs.juju }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect changed packages and record which test suites they have
+        id: packages
+        run: |
+          set -ueo pipefail
+
+          function set_output {
+            NAME=$1
+            set +u  # allow $2 to be missing
+            RAW=$2
+            set -u  # exit on unbound variables again
+            if [[ -z "$RAW" ]]; then
+              OUT="$NAME=[]"
+            else
+              JSON=$(echo $PACKAGES | jq --raw-input --slurp --compact-output 'split("\n")[:-1]')
+              OUT="$NAME=$JSON"
+            fi
+            echo "$OUT"
+            echo "$OUT" >> "$GITHUB_OUTPUT"
+          }
+
+          CHANGES=$(git diff --name-only origin/${{ github.base_ref || 'main' }})
+          GLOBAL=$(echo $CHANGES | grep -e ^pyproject.toml -e ^justfile -e ^.github)
+
+          if [[ -z "$GLOBAL" ]]; then
+            echo 'No changes to repo level config files, running tests for changed packages only.'
+            PACKAGES=$(echo $CHANGES | grep '^[a-z].*/.*' | cut -d'/' -f1 | uniq)
+          else
+            echo 'Changes to repo level config files, running tests for all packages.'
+            PACKAGES=$(ls -1d [a-z]*/ | cut -d'/' -f1)
+          fi
+
+          if [[ -z "$PACKAGES" ]]; then
+            echo 'No packages changed, tests will be skipped.'
+            set_output changed
+            set_output unit
+            set_output pebble
+            set_output juju
+            exit 0
+          fi
+
+          UNIT=()
+          PEBBLE=()
+          JUJU=()
+          for package in $PACKAGES; do
+            if [[ -d "$package/tests/unit" ]]; then
+              UNIT+=("$package")
+            fi
+            if [[ -d "$package/tests/integration/pebble" ]]; then
+              PEBBLE+=("$package")
+            fi
+            if [[ -d "$package/tests/integration/juju" ]]; then
+              JUJU+=("$package")
+            fi
+          done
+          set_output changed "$PACKAGES"
+          set_output unit "${UNIT[@]}"
+          set_output pebble "${PEBBLE[@]}"
+          set_output juju "${JUJU[@]}"
+
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install tox
-        run: pip install tox~=4.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Run linting
-        run: tox -e lint
+        run: uvx --from rust-just just lint
 
-  test:
+  static:
+    needs: packages
+    if: ${{ fromJson(needs.packages.outputs.changed) != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        tox-environment: [ 'static', 'unit']
+        package: ${{ fromJson(needs.packages.outputs.changed) }}
         python-version: [
           '3.8',  # oldest supported by Ops
           '3.12',  # latest Ubuntu LTS
@@ -38,22 +106,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: Install tox
-        run: pip install tox~=4.2
+      - name: Run ${{ matrix.just-recipe }} tests
+        run: uvx --from rust-just just package=${{ matrix.package }} python=${{ matrix.python-version }} static
 
-      - name: Run ${{ matrix.tox-environment }} tests
-        run: tox -e ${{ matrix.tox-environment }}
-
-  pebble:
+  unit:
+    needs: packages
+    if: ${{ fromJson(needs.packages.outputs.unit) != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        package: ${{ fromJson(needs.packages.outputs.unit) }}
+        python-version: [
+          '3.8',  # oldest supported by Ops
+          '3.12',  # latest Ubuntu LTS
+          '3.13',  # latest Python release
+        ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Run unit tests
+        run: uvx --from rust-just just package=${{ matrix.package }} python=${{ matrix.python-version }} unit
+
+  pebble:
+    needs: packages
+    if: ${{ fromJson(needs.packages.outputs.pebble) != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.packages.outputs.pebble) }}
         pebble-version: [
           'v1.1.1',  # Juju 2.9.50 LTS
           # 'v1.7.4',  # Juju 3.4.6
@@ -86,13 +174,38 @@ jobs:
         env:
           PEBBLE: /tmp/pebble-test
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install tox
-        run: pip install tox~=4.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Run Pebble integration tests
-        run: tox -e pebble
+        run: uvx --from rust-just just package=${{ matrix.package }} python=${{ matrix.python-version }} pebble
+        env:
+          PEBBLE: /tmp/pebble-test
+
+  juju:
+    needs: packages
+    if: ${{ fromJson(needs.packages.outputs.juju) != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.packages.outputs.juju) }}
+        python-version: [
+          '3.8',  # oldest supported by Ops
+          '3.12',  # latest Ubuntu LTS
+          '3.13',  # latest Python release
+        ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install concierge
+        run: sudo snap install --classic concierge
+
+      - name: Prepare Juju
+        run: sudo concierge prepare --verbose --juju-channel=3/stable --charmcraft-channel=3.x/stable -p microk8s
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Run Juju integration tests
+        run: uvx --from rust-just just package=${{ matrix.package }} python=${{ matrix.python-version }} juju
