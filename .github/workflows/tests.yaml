@@ -129,22 +129,26 @@ jobs:
       fail-fast: false
       matrix:
         package: ${{ fromJson(needs.packages.outputs.juju) }}
-        python-version: [
-          '3.8',  # oldest supported by Ops
-          '3.12',  # latest Ubuntu LTS
-          '3.13',  # latest Python release
-        ]
+        substrate: ['k8s', 'vm']
     steps:
       - uses: actions/checkout@v4
 
       - name: Install concierge
         run: sudo snap install --classic concierge
 
-      - name: Prepare Juju
+      - name: Prepare Juju for microk8s
+        if: ${{ matrix.substrate == 'k8s' }}
         run: sudo concierge prepare --verbose --juju-channel=3/stable --charmcraft-channel=3.x/stable -p microk8s
+
+      - name: Prepare Juju for machine
+        if: ${{ matrix.substrate == 'vm' }}
+        run: sudo concierge prepare --verbose --juju-channel=3/stable --charmcraft-channel=3.x/stable -p machine
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - name: Pack charms
+        run: uvx --from rust-just just pack-${{ matrix.substrate }} ${{ matrix.package }}
+
       - name: Run Juju integration tests
-        run: uvx --from rust-just just python=${{ matrix.python-version }} juju ${{ matrix.package }}
+        run: uvx --from rust-just just juju-${{ matrix.substrate }} ${{ matrix.package }}

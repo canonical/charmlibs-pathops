@@ -28,7 +28,9 @@ format:
 
 [doc('Run `pyright`, e.g. `just python=3.8 static pathops`.')]
 static package *pyright_args:
-    uv run --group='{{package}}' pyright --pythonversion='{{python}}' {{pyright_args}} '{{package}}'
+    uv sync  # ensure venv exists before uv pip install
+    uv pip install --editable './{{package}}'
+    uv run pyright --pythonversion='{{python}}' {{pyright_args}} '{{package}}'
 
 [doc("Run unit tests with `coverage`, e.g. `just python=3.8 unit pathops`.")]
 unit package +flags='-rA': (_coverage package 'unit' flags)
@@ -48,15 +50,12 @@ pebble package +flags='-rA':
     kill $PEBBLE_PID
     exit $EXITCODE
 
-
-[doc("Run juju integration tests. Requires `juju`.")]
-juju package +flags='-rA': (_coverage package 'integration/juju' flags)
-
 [doc("Use uv to install and run coverage for the specified package's tests.")]
 _coverage package test_subdir +flags='-rA':
     #!/usr/bin/env bash
     set -xueo pipefail
-    uv sync --python='{{python}}' --group='{{package}}'
+    uv sync --python='{{python}}'
+    uv pip install --editable './{{package}}'
     source .venv/bin/activate
     cd '{{package}}'
     export COVERAGE_RCFILE=../pyproject.toml
@@ -86,3 +85,32 @@ combine-coverage package:
     rm -rf "$HTML_DIR"  # let coverage create html directory from scratch
     uv run coverage html --data-file="$DATA_FILE" --show-contexts --directory="$HTML_DIR"
     uv run coverage report --data-file="$DATA_FILE"
+
+[doc("Execute pack script to pack Kubernetes charm(s) for Juju integration tests.")]
+pack-k8s package *charmcraft_args: (_pack package 'kubernetes' charmcraft_args)
+
+[doc("Execute pack script to pack machine charm(s) for Juju integration tests.")]
+pack-vm package *charmcraft_args: (_pack package 'machine' charmcraft_args)
+
+[doc("Execute the pack script for the given package and substrate.")]
+_pack package substrate *charmcraft_args:
+    #!/usr/bin/env bash
+    set -xueo pipefail
+    cd '{{package}}/tests/integration/juju/charms'
+    ./pack.sh {{substrate}} {{charmcraft_args}}
+
+[doc("Run juju integration tests for packed Kubernetes charm(s). Requires `juju`.")]
+juju-k8s package +flags='-rA': (_juju package 'kubernetes' flags)
+
+[doc("Run juju integration tests for packed Kubernetes charm(s). Requires `juju`.")]
+juju-vm package +flags='-rA': (_juju package 'machine' flags)
+
+[doc("Run juju integration tests. Requires `juju`.")]
+_juju package substrate +flags='-rA':
+    #!/usr/bin/env bash
+    set -xueo pipefail
+    uv sync --python='{{python}}'
+    uv pip install --editable './{{package}}'
+    source .venv/bin/activate
+    cd '{{package}}'
+    uv run --active pytest --tb=native -vv '{{flags}}' tests/integration/juju --substrate='{{substrate}}'

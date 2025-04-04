@@ -7,19 +7,14 @@ version = "0.0.0-dev0"
 dev = [
     "codespell==2.3.0",
     "coverage==7.6.1",
+    "jubilant==0.3.0",
     "pyright==1.1.397",
     "pytest==8.3.5",
     "ruff==0.11.0",
 ]
-pathops = [
-    "charmlibs-pathops",
-]
 
 [tool.uv]
 package=false
-
-[tool.uv.sources]
-charmlibs-pathops = { path = "pathops" }
 
 [tool.coverage.run]
 dynamic_context = "test_function"
