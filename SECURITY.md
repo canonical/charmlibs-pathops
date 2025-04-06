@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security updates will be released for all major versions that have had releases in the last year.
+Security updates will be released for all major versions from 1.0 onwards that have had releases in the last year.
 
 ## Reporting a vulnerability
 
