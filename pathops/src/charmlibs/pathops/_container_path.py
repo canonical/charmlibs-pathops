@@ -402,7 +402,9 @@ class ContainerPath:
             PebbleConnectionError: If the remote container cannot be reached.
         """
         info = _fileinfo.from_container_path(self)  # FileNotFoundError if path doesn't exist
-        return info.user or ''
+        user = info.user
+        assert user is not None
+        return user
 
     def group(self) -> str:
         """Return the group name of the file.
@@ -412,7 +414,9 @@ class ContainerPath:
             PebbleConnectionError: If the remote container cannot be reached.
         """
         info = _fileinfo.from_container_path(self)  # FileNotFoundError if path doesn't exist
-        return info.group or ''
+        group = info.group
+        assert group is not None
+        return group
 
     def exists(self) -> bool:
         """Whether this path exists.
