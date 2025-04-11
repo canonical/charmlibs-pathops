@@ -25,3 +25,11 @@ actions:
       n-temp-files:
         type: integer
         description: The number of files to create in a tempdir before calling iterdir on it.
+  chown:
+    params:
+      method:
+        type: string
+      user:
+        type: string
+      group:
+        type: string

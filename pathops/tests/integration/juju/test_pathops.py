@@ -19,6 +19,8 @@ from __future__ import annotations
 import ast
 import typing
 
+import pytest
+
 if typing.TYPE_CHECKING:
     import jubilant
 
@@ -41,3 +43,30 @@ def test_iterdir(juju: jubilant.Juju, charm: str):
     result = juju.run(f'{charm}/0', 'iterdir', params={'n-temp-files': n})
     files = ast.literal_eval(result.results['files'])
     assert len(files) == n
+
+
+@pytest.mark.parametrize(
+    ('user', 'group'),
+    (
+        (None, None),
+        ('root', None),
+        (None, 'root'),
+        ('root', 'root'),
+    ),
+)
+@pytest.mark.parametrize('method', ['mkdir', 'write_bytes', 'write_text'])
+def test_chown(juju: jubilant.Juju, charm: str, method: str, user: str | None, group: str | None):
+    print('juju run')
+    result = juju.run(
+        f'{charm}/0',
+        'chown',
+        params={'method': method, 'user': user or '', 'group': group or ''},
+    )
+    print(result)
+    print(result.results)
+    if user is not None:
+        print('asserting on user')
+        assert result.results['user'] == user
+    if group is not None:
+        print('asserting on group')
+        assert result.results['group'] == group

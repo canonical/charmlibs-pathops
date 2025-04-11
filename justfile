@@ -61,7 +61,7 @@ _coverage package test_subdir +flags='-rA':
     export COVERAGE_RCFILE=../pyproject.toml
     DATA_FILE=".report/coverage-$(basename {{test_subdir}})-{{python}}.db"
     uv run --active coverage run --data-file="$DATA_FILE" --source='src' \
-        -m pytest --tb=native -vv '{{flags}}' 'tests/{{test_subdir}}'
+        -m pytest --tb=native -vv {{flags}} 'tests/{{test_subdir}}'
     uv run --active coverage report --data-file="$DATA_FILE"
 
 [doc("Combine `coverage` reports, e.g. `just python=3.8 combine-coverage pathops`.")]
@@ -113,4 +113,4 @@ _juju package substrate +flags='-rA':
     uv pip install --editable './{{package}}'
     source .venv/bin/activate
     cd '{{package}}'
-    uv run --active pytest --tb=native -vv '{{flags}}' tests/integration/juju --substrate='{{substrate}}'
+    uv run --active pytest --tb=native -vv {{flags}} tests/integration/juju --substrate='{{substrate}}'
