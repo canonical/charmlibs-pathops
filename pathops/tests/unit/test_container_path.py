@@ -25,7 +25,14 @@ import pytest
 from ops import pebble
 
 import utils
-from charmlibs.pathops import ContainerPath, LocalPath, RelativePathError, _constants, _fileinfo
+from charmlibs.pathops import (
+    ContainerPath,
+    LocalPath,
+    RelativePathError,
+    _constants,
+    _fileinfo,
+    _functions,
+)
 
 if typing.TYPE_CHECKING:
     from typing import Any, Callable
@@ -323,16 +330,31 @@ def test_exists_reraises_unhandled_os_error(
         ContainerPath('/', container=container).exists()
 
 
+class ContainerPathMethod(typing.Protocol):
+    def __call__(self, path: ContainerPath, *args: object, **kwargs: object): ...
+
+
 @pytest.mark.parametrize(
-    ('path_method', 'container_method', 'args', 'kwargs'),
+    ('containerpath_method', 'container_method', 'args', 'kwargs'),
     (
-        ('read_bytes', 'pull', (), {}),
-        ('read_text', 'pull', (), {}),
-        ('write_bytes', 'list_files', (b'',), {}),
-        ('write_bytes', 'push', (b'',), {'mode': _constants.DEFAULT_WRITE_MODE, 'user': ''}),
-        ('write_text', 'list_files', ('',), {}),
-        ('write_text', 'push', ('',), {'mode': _constants.DEFAULT_WRITE_MODE, 'user': ''}),
-        ('mkdir', 'make_dir', (), {}),
+        (ContainerPath.read_bytes, 'pull', [], {}),
+        (ContainerPath.read_text, 'pull', [], {}),
+        (ContainerPath.write_bytes, 'list_files', [b''], {}),
+        (
+            ContainerPath.write_bytes,
+            'push',
+            [b''],
+            {'mode': _constants.DEFAULT_WRITE_MODE, 'user': ''},
+        ),
+        (ContainerPath.write_text, 'list_files', [''], {}),
+        (
+            ContainerPath.write_text,
+            'push',
+            [''],
+            {'mode': _constants.DEFAULT_WRITE_MODE, 'user': ''},
+        ),
+        (ContainerPath.mkdir, 'make_dir', [], {}),
+        (_functions.remove_path, 'remove_path', [], {}),
     ),
 )
 @pytest.mark.parametrize(
@@ -348,13 +370,12 @@ def test_methods_handle_or_reraise_pebble_errors(
     container: ops.Container,
     mock: Callable[[Any], None],
     error: type[Exception],
-    path_method: str,
+    containerpath_method: ContainerPathMethod,
     container_method: str,
     args: tuple[object],
     kwargs: dict[str, object],
 ):
     monkeypatch.setattr(container, container_method, mock)
-    containerpath_method = getattr(ContainerPath, path_method)
     with pytest.raises(error):
         containerpath_method(ContainerPath('/', container=container), *args, **kwargs)
 

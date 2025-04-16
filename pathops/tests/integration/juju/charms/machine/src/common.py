@@ -29,6 +29,7 @@ import ops
 #       after next pyright release fixes:
 #       https://github.com/microsoft/pyright/issues/10203
 import charmlibs.pathops as pathops
+from charmlibs.pathops._functions import remove_path
 
 if typing.TYPE_CHECKING:
     from typing import Sequence
@@ -53,10 +54,6 @@ class Charm(ops.CharmBase):
         framework.observe(self.on['iterdir'].action, self._on_iterdir)
         framework.observe(self.on['chown'].action, self._on_chown)
 
-    def remove_path(self, path: pathops.PathProtocol, recursive: bool = False) -> None:
-        """Remove a path following Pebble remove_path semantics if it exists."""
-        raise NotImplementedError()
-
     def exec(self, cmd: Sequence[str]) -> int:
         """Run a command and return the exit code."""
         raise NotImplementedError()
@@ -65,7 +62,7 @@ class Charm(ops.CharmBase):
         path = self.root / event.params['path']
         pathops.ensure_contents(path=path, source=event.params['contents'])
         contents = path.read_text()
-        self.remove_path(path)
+        remove_path(path)
         event.set_results({'contents': contents})
 
     def _on_iterdir(self, event: ops.ActionEvent) -> None:
@@ -78,7 +75,7 @@ class Charm(ops.CharmBase):
         for i in range(n):
             (path / str(i)).write_bytes(b'')
         result = [str(p) for p in path.iterdir()]
-        self.remove_path(path, recursive=True)
+        remove_path(path, recursive=True)
         event.set_results({'files': str(result)})
 
     def _on_chown(self, event: ops.ActionEvent) -> None:
@@ -114,7 +111,8 @@ class Charm(ops.CharmBase):
             msg = f'Exception: {e!r}\n{tb}'
             event.fail(msg)
         finally:
-            self.remove_path(path)
+            if path.exists():
+                remove_path(path)
             self.remove_user(temp_user)
 
     def add_user(self, user: str) -> None:

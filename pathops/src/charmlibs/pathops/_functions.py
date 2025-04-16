@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
 import typing
 
-from . import _constants, _fileinfo
+from ops import pebble
+
+from . import _constants, _errors, _fileinfo
 from ._container_path import ContainerPath
 from ._local_path import LocalPath
 
@@ -27,7 +30,6 @@ if typing.TYPE_CHECKING:
     import os
     from typing import BinaryIO, TextIO
 
-    from ops import pebble
     from typing_extensions import TypeIs
 
     from ._types import PathProtocol
@@ -100,3 +102,45 @@ def _as_bytes(source: bytes | str | BinaryIO | TextIO) -> bytes:
     if isinstance(source, str):
         return source.encode()
     return _as_bytes(source.read())
+
+
+def remove_path(path: str | os.PathLike[str] | PathProtocol, *, recursive: bool = False) -> None:
+    """Remove a file or directory following Pebble's file removal semantics.
+
+    Args:
+        path: The path to remove. If it is a non-empty directory, a :class:`DirectoryNotEmpty`
+            error will be raised, unless ``recursive`` is ``True``.
+        recursive: Whether to remove the contents of a non-empty directory ``path``.
+            Also suppresses :class:`FileNotFoundError`.
+
+    Raises:
+        DirectoryNotEmpty: if ``path`` is a non-empty directory and ``recursive`` is ``False``.
+        FileNotFoundError: if ``path`` does not exist and ``recursive`` is ``False``.
+        PermissionError: if the Pebble user does not have permissions for the operation.
+        PebbleConnectionError: if the remote Pebble client cannot be reached.
+    """
+    if isinstance(path, ContainerPath):
+        return _remove_container_path(path, recursive=recursive)
+    assert _is_str_pathlike(path)
+    return _remove_pathlib_path(pathlib.Path(path), recursive=recursive)
+
+
+def _remove_container_path(path: ContainerPath, recursive: bool) -> None:
+    try:
+        path._container.remove_path(path._path, recursive=recursive)
+    except pebble.PathError as e:
+        msg = repr(path)
+        _errors.raise_if_matches_directory_not_empty(e, msg=msg)
+        _errors.raise_if_matches_file_not_found(e, msg=msg)
+        _errors.raise_if_matches_permission(e, msg=msg)
+        raise
+
+
+def _remove_pathlib_path(path: pathlib.Path, recursive: bool) -> None:
+    if recursive and not path.exists():
+        return
+    if not path.is_dir():
+        return path.unlink()
+    if not recursive:
+        return path.rmdir()
+    shutil.rmtree(path)

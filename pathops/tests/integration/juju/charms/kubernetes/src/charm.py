@@ -49,11 +49,6 @@ class Charm(common.Charm):
         """Handle pebble-ready event."""
         self.unit.status = ops.ActiveStatus()
 
-    def remove_path(self, path: pathops.PathProtocol, recursive: bool = False) -> None:
-        assert isinstance(path, pathops.ContainerPath)
-        if path.exists():
-            self.container.remove_path(str(path), recursive=recursive)
-
     def exec(self, cmd: Sequence[str]) -> int:
         process = self.container.exec(list(cmd))
         try:

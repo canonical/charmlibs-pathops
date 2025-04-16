@@ -23,6 +23,15 @@ from typing import NoReturn
 from ops import pebble
 
 
+def raise_if_matches_directory_not_empty(error: pebble.Error, msg: str) -> None:
+    if (
+        isinstance(error, pebble.PathError)
+        and error.kind == 'generic-file-error'
+        and 'directory not empty' in error.message
+    ):
+        raise OSError(errno.ENOTEMPTY, os.strerror(errno.ENOTEMPTY), msg) from error
+
+
 def raise_file_exists(msg: str, from_: BaseException | None = None) -> NoReturn:
     e = FileExistsError(errno.EEXIST, os.strerror(errno.EEXIST), msg)
     print(e)

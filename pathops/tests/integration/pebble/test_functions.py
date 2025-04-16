@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import errno
 import io
 import pathlib
 import typing
@@ -24,12 +25,119 @@ import pytest
 
 import utils
 from charmlibs.pathops import ContainerPath, LocalPath, _constants, ensure_contents
-from charmlibs.pathops._functions import _get_fileinfo
+from charmlibs.pathops._functions import _get_fileinfo, remove_path
 
 if typing.TYPE_CHECKING:
     from typing import Literal
 
     import ops
+
+
+class TestRemovePath:
+    def test_file_ok(self, tmp_path: pathlib.Path, container: ops.Container):
+        path = tmp_path / 'file'
+        assert not path.exists()
+        # setup
+        path.touch()
+        # local
+        local_path = LocalPath(path)
+        remove_path(local_path)
+        assert not path.exists()
+        # setup
+        path.touch()
+        # container
+        container_path = ContainerPath(path, container=container)
+        remove_path(container_path)
+        assert not path.exists()
+
+    def test_empty_dir_ok(self, tmp_path: pathlib.Path, container: ops.Container):
+        path = tmp_path / 'directory'
+        assert not path.exists()
+        # setup
+        path.mkdir()
+        # local
+        local_path = LocalPath(path)
+        remove_path(local_path)
+        assert not path.exists()
+        # setup
+        path.mkdir()
+        # container
+        container_path = ContainerPath(path, container=container)
+        remove_path(container_path)
+        assert not path.exists()
+
+    def test_non_empty_dir_ok(self, tmp_path: pathlib.Path, container: ops.Container):
+        path = tmp_path / 'directory'
+        assert not path.exists()
+        contents = path / 'file'
+        assert not contents.exists()
+        # setup
+        path.mkdir()
+        assert path.exists()
+        contents.touch()
+        assert contents.exists()
+        # local
+        local_path = LocalPath(path)
+        remove_path(local_path, recursive=True)
+        assert not contents.exists()
+        assert not path.exists()
+        # setup
+        path.mkdir()
+        assert path.exists()
+        contents.touch()
+        assert contents.exists()
+        # container
+        container_path = ContainerPath(path, container=container)
+        remove_path(container_path, recursive=True)
+        assert not contents.exists()
+        assert not path.exists()
+
+    def test_non_empty_dir_not_ok(self, tmp_path: pathlib.Path, container: ops.Container):
+        path = tmp_path / 'directory'
+        assert not path.exists()
+        contents = path / 'file'
+        assert not contents.exists()
+        # setup
+        path.mkdir()
+        assert path.exists()
+        contents.touch()
+        assert contents.exists()
+        # local
+        local_path = LocalPath(path)
+        with pytest.raises(OSError) as ctx:
+            remove_path(local_path, recursive=False)
+        assert ctx.value.errno == errno.ENOTEMPTY
+        assert contents.exists()
+        assert path.exists()
+        # container
+        container_path = ContainerPath(path, container=container)
+        with pytest.raises(OSError) as ctx:
+            remove_path(container_path, recursive=False)
+        assert ctx.value.errno == errno.ENOTEMPTY
+        assert contents.exists()
+        assert path.exists()
+
+    def test_missing_file_not_ok(self, tmp_path: pathlib.Path, container: ops.Container):
+        path = tmp_path / 'file'
+        assert not path.exists()
+        # local
+        local_path = LocalPath(path)
+        with pytest.raises(FileNotFoundError):
+            remove_path(local_path)
+        # container
+        container_path = ContainerPath(path, container=container)
+        with pytest.raises(FileNotFoundError):
+            remove_path(container_path)
+
+    def test_missing_file_ok_w_recursive(self, tmp_path: pathlib.Path, container: ops.Container):
+        path = tmp_path / 'file'
+        assert not path.exists()
+        # local
+        local_path = LocalPath(path)
+        remove_path(local_path, recursive=True)
+        # container
+        container_path = ContainerPath(path, container=container)
+        remove_path(container_path, recursive=True)
 
 
 @pytest.mark.parametrize('exists', [True, False])
