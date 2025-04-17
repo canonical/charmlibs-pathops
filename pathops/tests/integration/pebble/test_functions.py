@@ -80,14 +80,19 @@ def test_ensure_contents(
     assert info.permissions == mode
 
 
+@pytest.mark.parametrize('follow_symlinks', [True, False])
 @pytest.mark.parametrize('filename', utils.FILENAMES_PLUS)
-def test_get_fileinfo(container: ops.Container, session_dir: pathlib.Path, filename: str):
+def test_get_fileinfo(
+    container: ops.Container, session_dir: pathlib.Path, filename: str, follow_symlinks: bool
+):
     path = session_dir / filename
     try:
-        pebble_result = _get_fileinfo(ContainerPath(path, container=container))
+        pebble_result = _get_fileinfo(
+            ContainerPath(path, container=container), follow_symlinks=follow_symlinks
+        )
     except OSError as e:
         with pytest.raises(type(e)):
-            _get_fileinfo(path)
+            _get_fileinfo(path, follow_symlinks=follow_symlinks)
     else:
-        synthetic_result = _get_fileinfo(path)
+        synthetic_result = _get_fileinfo(path, follow_symlinks=follow_symlinks)
         assert utils.info_to_dict(synthetic_result) == utils.info_to_dict(pebble_result)

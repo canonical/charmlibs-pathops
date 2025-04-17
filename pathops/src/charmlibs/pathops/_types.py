@@ -348,6 +348,36 @@ class PathProtocol(typing.Protocol):
         """
         ...
 
+    def is_symlink(self) -> bool:
+        """Whether this path is a symbolic link.
+
+        Raises:
+            PebbleConnectionError: If the remote container cannot be reached.
+        """
+        ...
+
+    def rmdir(self) -> None:
+        """Remove this path if it is an empty directory.
+
+        Raises:
+            FileNotFoundError: if the path does not exist.
+            NotADirectoryError: if the path exists but is not a directory.
+            PermissionError: if the local or remote user does not have the appropriate permissions.
+            PebbleConnectionError: if the remote Pebble client cannot be reached.
+        """
+        ...
+
+    def unlink(self) -> None:
+        """Remove this path if it is an empty directory.
+
+        Raises:
+            FileNotFoundError: if the path does not exist.
+            IsADirectoryError: if the path exists but is a directory.
+            PermissionError: if the local or remote user does not have the appropriate permissions.
+            PebbleConnectionError: if the remote Pebble client cannot be reached.
+        """
+        ...
+
     ##################################################
     # protocol Path methods with extended signatures #
     ##################################################
@@ -585,18 +615,6 @@ class PathProtocol(typing.Protocol):
 # protocol Path methods #
 #########################
 
-# remove
-# these methods are problematic because Pebble
-# 1. doesn't let us distinguish in advance between dirs and symlinks to them
-# 2. doesn't provide a way not to remove an empty directory
-#
-# If provided, would have to also remove symlinks to directories
-# def rmdir(self) -> None: ...
-#
-# If provided, would either have to also remove empty directories
-# or be unable to remove symlinks to directories
-# def unlink(self, missing_ok: bool = False) -> None: ...
-
 # recursive glob is problematic because Pebble doesn't tell us whether something is a symlink
 # so we can easily recurse until we hit Pebble's api limit
 # def rglob(
@@ -634,9 +652,6 @@ class PathProtocol(typing.Protocol):
 # TODO: support if we add follow_symlinks to Pebble's list_files API
 
 # def is_mount(self) -> bool: ...
-# pebble doesn't support this
-
-# def is_symlink(self) -> bool: ...
 # pebble doesn't support this
 
 # def is_junction(self) -> bool: ...

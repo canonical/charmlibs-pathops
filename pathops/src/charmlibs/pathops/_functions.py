@@ -87,11 +87,13 @@ def _is_str_pathlike(obj: object) -> TypeIs[str | os.PathLike[str]]:
     return isinstance(obj, str) or hasattr(obj, '__fspath__')
 
 
-def _get_fileinfo(path: str | os.PathLike[str] | PathProtocol) -> pebble.FileInfo:
+def _get_fileinfo(
+    path: str | os.PathLike[str] | PathProtocol, follow_symlinks: bool = True
+) -> pebble.FileInfo:
     if isinstance(path, ContainerPath):
-        return _fileinfo.from_container_path(path)
+        return _fileinfo.from_container_path(path, follow_symlinks=follow_symlinks)
     assert _is_str_pathlike(path)
-    return _fileinfo.from_pathlib_path(pathlib.Path(path))
+    return _fileinfo.from_pathlib_path(pathlib.Path(path), follow_symlinks=follow_symlinks)
 
 
 def _as_bytes(source: bytes | str | BinaryIO | TextIO) -> bytes:

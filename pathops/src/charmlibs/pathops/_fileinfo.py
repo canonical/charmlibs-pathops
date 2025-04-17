@@ -43,7 +43,13 @@ _FT_MAP: dict[int, pebble.FileType] = {
 }
 
 
-def from_container_path(path: ContainerPath) -> pebble.FileInfo:
+def from_container_path(path: ContainerPath, follow_symlinks: bool = True) -> pebble.FileInfo:
+    if follow_symlinks:
+        return _get_fileinfo_directly(path)
+    return _get_fileinfo_from_parent(path)
+
+
+def _get_fileinfo_directly(path: ContainerPath) -> pebble.FileInfo:
     try:
         (info,) = path._container.list_files(path._path, itself=True)
     except (pebble.APIError, pebble.PathError) as e:
@@ -56,8 +62,22 @@ def from_container_path(path: ContainerPath) -> pebble.FileInfo:
     return info
 
 
-def from_pathlib_path(path: pathlib.Path) -> pebble.FileInfo:
-    stat_result = path.stat()  # stat because pebble always follows symlinks
+def _get_fileinfo_from_parent(path: ContainerPath) -> pebble.FileInfo:
+    try:
+        info_list = path._container.list_files(path._path.parent, pattern=path.name)
+    except (pebble.APIError, pebble.PathError) as e:
+        msg = repr(path)
+        _errors.raise_if_matches_file_not_found(e, msg=msg)
+        _errors.raise_if_matches_permission(e, msg=msg)
+        raise
+    if not info_list:
+        _errors.raise_file_not_found(repr(path))
+    (info,) = info_list
+    return info
+
+
+def from_pathlib_path(path: pathlib.Path, follow_symlinks: bool = True) -> pebble.FileInfo:
+    stat_result = path.stat() if follow_symlinks else path.lstat()
     utcoffset = datetime.datetime.now().astimezone().utcoffset()
     timezone = datetime.timezone(utcoffset) if utcoffset is not None else datetime.timezone.utc
     filetype = _FT_MAP.get(stat.S_IFMT(stat_result.st_mode), pebble.FileType.UNKNOWN)

@@ -124,7 +124,7 @@ def _make_session_dir() -> tuple[pathlib.Path, Callable[[], None]]:
 # The session_dir fixture defined in conftest.py yields the path and calls the teardown function.
 _SESSION_DIR_PATH, _TEARDOWN_SESSION_DIR = _make_session_dir()
 FILENAMES = tuple(path.name for path in _SESSION_DIR_PATH.iterdir())
-FILENAMES_PLUS = (*FILENAMES, MISSING_FILE_NAME)
+FILENAMES_PLUS = (*FILENAMES, MISSING_FILE_NAME, f'{MISSING_FILE_NAME}/{MISSING_FILE_NAME}')
 
 #########
 # utils #

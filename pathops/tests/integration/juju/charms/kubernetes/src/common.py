@@ -53,19 +53,15 @@ class Charm(ops.CharmBase):
         framework.observe(self.on['iterdir'].action, self._on_iterdir)
         framework.observe(self.on['chown'].action, self._on_chown)
 
-    def remove_path(self, path: pathops.PathProtocol, recursive: bool = False) -> None:
-        """Remove a path following Pebble remove_path semantics if it exists."""
-        raise NotImplementedError()
-
     def exec(self, cmd: Sequence[str]) -> int:
         """Run a command and return the exit code."""
         raise NotImplementedError()
 
     def _on_ensure_contents(self, event: ops.ActionEvent) -> None:
-        path = self.root / event.params['path']
+        path = self.root / typing.cast('str', event.params['path'])
         pathops.ensure_contents(path=path, source=event.params['contents'])
         contents = path.read_text()
-        self.remove_path(path)
+        path.unlink()
         event.set_results({'contents': contents})
 
     def _on_iterdir(self, event: ops.ActionEvent) -> None:
@@ -78,7 +74,9 @@ class Charm(ops.CharmBase):
         for i in range(n):
             (path / str(i)).write_bytes(b'')
         result = [str(p) for p in path.iterdir()]
-        self.remove_path(path, recursive=True)
+        for p in path.iterdir():
+            p.unlink()
+        path.rmdir()
         event.set_results({'files': str(result)})
 
     def _on_chown(self, event: ops.ActionEvent) -> None:
@@ -114,7 +112,10 @@ class Charm(ops.CharmBase):
             msg = f'Exception: {e!r}\n{tb}'
             event.fail(msg)
         finally:
-            self.remove_path(path)
+            if path.is_dir() and not path.is_symlink():
+                path.rmdir()
+            elif path.exists():
+                path.unlink()
             self.remove_user(temp_user)
 
     def add_user(self, user: str) -> None:

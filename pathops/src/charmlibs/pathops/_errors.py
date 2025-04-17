@@ -23,9 +23,17 @@ from typing import NoReturn
 from ops import pebble
 
 
+def raise_if_matches_directory_not_empty(error: pebble.Error, msg: str) -> None:
+    if (
+        isinstance(error, pebble.PathError)
+        and error.kind == 'generic-file-error'
+        and 'directory not empty' in error.message
+    ):
+        raise OSError(errno.ENOTEMPTY, os.strerror(errno.ENOTEMPTY), msg) from error
+
+
 def raise_file_exists(msg: str, from_: BaseException | None = None) -> NoReturn:
     e = FileExistsError(errno.EEXIST, os.strerror(errno.EEXIST), msg)
-    print(e)
     raise e from from_
 
 
@@ -55,13 +63,17 @@ def raise_if_matches_file_not_found(error: pebble.Error, msg: str) -> None:
         raise_file_not_found(msg, from_=error)
 
 
+def raise_is_a_directory(msg: str, from_: BaseException | None = None) -> None:
+    raise IsADirectoryError(errno.EISDIR, os.strerror(errno.EISDIR), msg) from from_
+
+
 def raise_if_matches_is_a_directory(error: pebble.Error, msg: str) -> None:
     if (
         isinstance(error, pebble.PathError)
         and error.kind == 'generic-file-error'
         and 'can only read a regular file' in error.message
     ):
-        raise IsADirectoryError(errno.EISDIR, os.strerror(errno.EISDIR), msg) from error
+        raise_is_a_directory(msg, from_=error)
 
 
 def raise_if_matches_lookup(error: pebble.Error, msg: str) -> None:
