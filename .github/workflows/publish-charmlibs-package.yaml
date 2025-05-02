@@ -5,8 +5,12 @@ on:
       - 'charmlibs-v*.*.*'
 
 jobs:
+  lint:
+    uses: ./.github/workflows/lint.yaml
   tests:
     uses: ./.github/workflows/tests.yaml
+    with:
+      package: _charmlibs
   build-n-publish:
     name: Build and Publish 'charmlibs' to PyPI
     runs-on: ubuntu-latest
@@ -14,7 +18,7 @@ jobs:
       id-token: write
       attestations: write
       contents: read
-    needs: [tests]
+    needs: [lint, tests]
     steps:
       - uses: actions/checkout@v4
       - name: Install uv

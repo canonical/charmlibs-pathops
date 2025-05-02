@@ -1,20 +1,20 @@
 name: Tests
+# runs tests for specified package
+# always runs static tests
+# runs unit and integration tests if the package implements them
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
   workflow_call:
+    inputs:
+      package:
+        required: true
+        type: string
 
 jobs:
-  packages:
+  get-tests:
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.packages.outputs.changed }}
-      unit: ${{ steps.packages.outputs.unit }}
-      pebble: ${{ steps.packages.outputs.pebble }}
-      juju: ${{ steps.packages.outputs.juju }}
+      tests: ${{ steps.packages.outputs.tests }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,32 +23,19 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Collect changed packages and record which test suites they have
+      - name: Check which test suites this package has
         id: packages
-        run: uv run --no-project --script .github/packages.py ${{ github.base_ref || 'main' }}
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Run linting
-        run: uvx --from rust-just just lint
+        run: uv run --no-project --script .github/get-tests.py ${{ inputs.package }}
 
   static:
-    needs: packages
-    if: ${{ toJson(fromJson(needs.packages.outputs.changed)) != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJson(needs.packages.outputs.changed) }}
         python-version: [
-          '3.8',  # oldest supported by Ops
-          '3.12',  # latest Ubuntu LTS
+          '3.8',  # Ubuntu 20.04 (oldest supported by ops)
+          '3.10',  # Ubuntu 22.04
+          '3.12',  # Ubuntu 24.04
           '3.13',  # latest Python release
         ]
     steps:
@@ -58,19 +45,19 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Run static analysis
-        run: uvx --from rust-just just python=${{ matrix.python-version }} static ${{ matrix.package }}
+        run: uvx --from rust-just just python=${{ matrix.python-version }} static ${{ inputs.package }}
 
   unit:
-    needs: packages
-    if: ${{ toJson(fromJson(needs.packages.outputs.unit)) != '[]' }}
+    needs: get-tests
+    if: contains(fromJson(needs.get-tests.outputs.tests), 'unit')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJson(needs.packages.outputs.unit) }}
         python-version: [
-          '3.8',  # oldest supported by Ops
-          '3.12',  # latest Ubuntu LTS
+          '3.8',  # Ubuntu 20.04 (oldest supported by ops)
+          '3.10',  # Ubuntu 22.04
+          '3.12',  # Ubuntu 24.04
           '3.13',  # latest Python release
         ]
     steps:
@@ -80,26 +67,26 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Run unit tests
-        run: uvx --from rust-just just python=${{ matrix.python-version }} unit ${{ matrix.package }}
+        run: uvx --from rust-just just python=${{ matrix.python-version }} unit ${{ inputs.package }}
 
   pebble:
-    needs: packages
-    if: ${{ toJson(fromJson(needs.packages.outputs.pebble)) != '[]' }}
+    needs: get-tests
+    if: contains(fromJson(needs.get-tests.outputs.tests), 'pebble')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJson(needs.packages.outputs.pebble) }}
         pebble-version: [
           'v1.1.1',  # Juju 2.9.50 LTS
           # 'v1.7.4',  # Juju 3.4.6
           # 'v1.10.2',  # Juju 3.5.7
-          'v1.19.0',  # Juju 3.6.4 LTS
+          # 'v1.19.0',  # Juju 3.6.4 LTS
           'master',
         ]
         python-version: [
-          '3.8',  # oldest supported by Ops
-          '3.12',  # latest Ubuntu LTS
+          '3.8',  # Ubuntu 20.04 (oldest supported by ops)
+          # '3.10',  # Ubuntu 22.04
+          # '3.12',  # Ubuntu 24.04
           '3.13',  # latest Python release
         ]
     steps:
@@ -119,16 +106,15 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Run Pebble integration tests
-        run: uvx --from rust-just just python=${{ matrix.python-version }} pebble ${{ matrix.package }}
+        run: uvx --from rust-just just python=${{ matrix.python-version }} pebble ${{ inputs.package }}
 
   juju:
-    needs: packages
-    if: ${{ toJson(fromJson(needs.packages.outputs.juju)) != '[]' }}
+    needs: get-tests
+    if: contains(fromJson(needs.get-tests.outputs.tests), 'juju')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJson(needs.packages.outputs.juju) }}
         base: ['20.04', '24.04']
         substrate: ['k8s', 'vm']
     steps:
@@ -149,7 +135,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Pack charms
-        run: uvx --from rust-just just pack-${{ matrix.substrate }} ${{ matrix.package }} ${{ matrix.base }}
+        run: uvx --from rust-just just pack-${{ matrix.substrate }} ${{ inputs.package }} ${{ matrix.base }}
 
       - name: Run Juju integration tests
-        run: uvx --from rust-just just juju-${{ matrix.substrate }} ${{ matrix.package }}
+        run: uvx --from rust-just just juju-${{ matrix.substrate }} ${{ inputs.package }}

@@ -1,0 +1,40 @@
+name: CI
+# runs linting for whole repository, and:
+# on PR: runs tests for packages with changes (or all if global files are changed)
+# on push to main or on dipatch: runs tests for all packages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yaml
+
+  get-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.packages.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Collect changed packages
+        id: packages
+        run: uv run --no-project --script .github/get-packages.py ${{ github.base_ref }}
+
+  tests:
+    needs: get-packages
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.get-packages.outputs.packages) }}
+    uses: ./.github/workflows/tests.yaml
+    with:
+      package: ${{ matrix.package }}
