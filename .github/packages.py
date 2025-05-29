@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Output changed packages and which test suites they have.
+"""Output changed packages, or all packages if global config files have changed.
 
 Assumes that the current working directory is the project root.
 The git reference to diff with must be provided as a commandline argument.
@@ -28,47 +28,42 @@ import string
 import subprocess
 
 _ALPHABET = tuple(string.ascii_lowercase)
-_GLOBAL_FILES = ('pyproject.toml', 'justfile', '.github')
+_GLOBAL_FILES = ('.github', 'justfile', 'pyproject.toml')
 
 
-def _parse_args() -> str:
+def _parse_args() -> str | None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('git_base_ref')
+    parser.add_argument('git_base_ref', default=None)
     args = parser.parse_args()
     return args.git_base_ref
 
 
-def _main(project_root: pathlib.Path, git_base_ref: str) -> None:
-    git_diff_cmd = ['git', 'diff', '--name-only', f'origin/{git_base_ref}']
-    git_diff = subprocess.run(git_diff_cmd, capture_output=True, text=True)
-    changes = git_diff.stdout.split('\n')
-    # record which packages have changed, or all if global config files have changed
-    if any(change.startswith(_GLOBAL_FILES) for change in changes):
-        changed_packages = sorted(
-            path.name
-            for path in project_root.iterdir()
-            if path.is_dir() and path.name.startswith(_ALPHABET)
-        )
-    else:
-        names = {change.split('/')[0] for change in changes}
-        changed_packages = sorted(
-            n for n in names if (project_root / n).is_dir() and n.startswith(_ALPHABET)
-        )
-    # record the test suites provided by each package
-    tests = ('unit', 'integration/pebble', 'integration/juju')
-    output: dict[str, list[str]] = {test: [] for test in tests}
-    output['changed'] = changed_packages
-    for name in tests:
-        for package in changed_packages:
-            if (project_root / package / 'tests' / name).is_dir():
-                output[name].append(package)
-    # set output
+def _main(git_base_ref: str | None) -> None:
+    packages = _get_changed_packages(git_base_ref=git_base_ref)
+    line = f'packages={json.dumps(packages)}'
+    print(line)
     with pathlib.Path(os.environ['GITHUB_OUTPUT']).open('a') as f:
-        for name, packages in output.items():
-            line = f'{pathlib.PurePath(name).name}={json.dumps(packages)}'
-            print(line)
-            print(line, file=f)
+        print(line, file=f)
+
+
+def _get_changed_packages(git_base_ref: str | None) -> list[str]:
+    all_packages = sorted(
+        path.name
+        for path in pathlib.Path().iterdir()
+        if path.is_dir() and (path.name.startswith(_ALPHABET) or path.name == '_charmlibs')
+    )
+    if not git_base_ref:
+        print('Using all packages because no git base ref was provided:')
+        return all_packages
+    cmd = ['git', 'diff', '--name-only', f'origin/{git_base_ref}']
+    diff = subprocess.check_output(cmd, text=True)
+    changes = {path.split('/')[0] for path in diff.split('\n')}
+    if global_changes := sorted(changes.intersection(_GLOBAL_FILES)):
+        print(f'Using all packages because global files were changed: {global_changes}')
+        return all_packages
+    print(f'Using packages that are changed compared to {git_base_ref}:')
+    return sorted(changes.intersection(all_packages))
 
 
 if __name__ == '__main__':
-    _main(project_root=pathlib.Path(), git_base_ref=_parse_args())
+    _main(git_base_ref=_parse_args())
