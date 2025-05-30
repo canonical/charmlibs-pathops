@@ -17,7 +17,7 @@ You should use a Python package for your charm library if:
 
 - You need to share modules between the machine and Kubernetes versions of a charm.
 
-For a relation library, it may still be worthwhile to use a Charmcraft lib, since the library may be associated with a single charm. There's also infrastructure and documentation that supports this pattern. However, even in this case, the reasons listed above should take priority.
+For a relation library, the current recommendation is still to use a Charmcraft lib where possible. This is an especially good fit if the library is associated with a single charm. There's also infrastructure and documentation that supports this pattern. However, even in this case, if your relation library needs additional dependencies it would be better to distribute it as a Python package.
 
 
 (python-package-name)=
@@ -31,7 +31,7 @@ If you have a dedicated repository for the charmlib, we recommend naming it `cha
 Don't use the `ops` or `charm` namespaces for your libraries. It will be easier for charmers to follow your code if the `ops` namespace is reserved for the `ops` package. Likewise, the `charms` namespace is best left for charmcraft managed libs.
 ```
 
-If your library should only be used by your own charms, you don't need to publish it to PyPI. In this case, you don't need to use the `charmlibs` namespace either, but feel free to do so if it's helpful. The next section suggests alternative distribution methods for this case.
+If your library should only be used by your own charms, you don't need to publish it to PyPI. In this case, you don't need to use the `charmlibs` namespace either, but feel free to do so if it's helpful. The [next section](python-package-distribution) suggests alternative distribution methods for this case.
 
 
 (namespace-package)=
@@ -66,7 +66,6 @@ During development and team internal use, you may find it useful to begin by dis
 
 To publish your library on PyPI, set up [trusted publishing](https://docs.pypi.org/trusted-publishers/) on PyPI, and create a Github workflow triggered by a version tag. For example:
 
-<!-- TODO: use exact commits hashes in this workflow example -->
 ```yaml
 # .github/workflows/publish.yaml
 on:
