@@ -11,7 +11,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Intended Audience :: Developers",
     "Operating System :: POSIX :: Linux",
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 5 - Production/Stable",
 ]
 dynamic = ["version"]
 
