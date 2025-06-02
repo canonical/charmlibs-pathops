@@ -21,7 +21,7 @@ jobs:
         run: uv build
         working-directory: ./_charmlibs
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2.2.3
+        uses: actions/attest-build-provenance@v2.3.0
         with:
           subject-path: '_charmlibs/dist/*'
       - name: Publish
