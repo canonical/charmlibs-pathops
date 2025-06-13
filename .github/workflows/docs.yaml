@@ -47,3 +47,10 @@ jobs:
         uses: DavidAnson/markdownlint-cli2-action@v20
         with:
           config: "_docs/.sphinx/.markdownlint.json"
+      - name: Automated docs check
+        id: auto-docs-check
+        if: success() || failure()
+        working-directory: ./_docs
+        run: |
+          python generate.py
+          git diff --exit-code

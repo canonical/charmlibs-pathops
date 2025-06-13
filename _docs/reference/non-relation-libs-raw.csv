@@ -1,0 +1,19 @@
+name,status,url,docs,src,kind,machine,K8s,description
+charmlibs.pathops,recommended,https://pypi.org/project/charmlibs-pathops,https://canonical-charmlibs.readthedocs-hosted.com,https://github.com/canonical/charmtech-charmlibs,PyPI,y,y,Substrate agnostic file operations.
+snap,recommended,https://charmhub.io/operator-libs-linux/libraries/snap,,https://github.com/canonical/operator-libs-linux,Charmhub,y,,Install and manage packages via snapd.
+systemd,recommended,https://charmhub.io/operator-libs-linux/libraries/systemd,,https://github.com/canonical/operator-libs-linux,Charmhub,y,,"Start, stop, and manage system services via systemd."
+apt,recommended,https://charmhub.io/operator-libs-linux/libraries/apt,,https://github.com/canonical/operator-libs-linux,Charmhub,y,,Install and manage packages via apt.
+dnf,legacy,https://charmhub.io/operator-libs-linux/libraries/dnf,,https://github.com/canonical/operator-libs-linux,Charmhub,y,,"Install and manage packages via dnf – modern charms all run on Ubuntu, so this shouldn’t be needed."
+grub,recommended,https://charmhub.io/operator-libs-linux/libraries/grub,,https://github.com/canonical/operator-libs-linux,Charmhub,y,,Manage kernel configuration via GRUB.
+juju_systemd_notices,recommended,https://charmhub.io/operator-libs-linux/libraries/juju_systemd_notices,,https://github.com/canonical/operator-libs-linux,Charmhub,y,,Use systemd to observe and emit notices when services change state.
+passwd,recommended,https://charmhub.io/operator-libs-linux/libraries/passwd,,https://github.com/canonical/operator-libs-linux,Charmhub,y,,Manage Linux users and groups.
+sysctl,recommended,https://charmhub.io/operator-libs-linux/libraries/sysctl,,https://github.com/canonical/operator-libs-linux,Charmhub,y,,Create and configure sysctl options.
+charmed-kubeflow-chisme,team,https://pypi.org/project/charmed-kubeflow-chisme/,,https://github.com/canonical/charmed-kubeflow-chisme,PyPI,y,y,Used internally by Charmed Kubeflow team.
+hpc-libs,team,https://github.com/charmed-hpc/hpc-libs,,,git,y,y,Used internally by HPC charms.
+charm-helpers,legacy,https://pypi.org/project/charmhelpers/,https://charm-helpers.readthedocs.io/,https://github.com/juju/charm-helpers,PyPI,y,y,Pre-ops library used by reactive charms.
+cos-lib,dep,https://pypi.org/project/cosl/,,https://github.com/canonical/cos-lib,PyPI,y,y,A dependency (via PYDEPS) of popular charm libs (e.g. loki push api).
+serialized-data-interface,legacy,https://pypi.org/project/serialized-data-interface/,,https://github.com/canonical/serialized-data-interface,PyPI,y,y,Relation data validation – use the features available in ops instead.
+oci-image,legacy,https://pypi.org/project/oci-image/,,https://github.com/juju-solutions/resource-oci-image,PyPI,,y,Work with OCI image resources – repo archived in March 2024.
+data-platform-helpers,team,https://pypi.org/project/data-platform-helpers/,,https://github.com/canonical/data-platform-helpers,PyPI,y,y,Used internally by the Data Charm Engineering team.
+mongo-charms-single-kernel,team,https://pypi.org/project/mongo-charms-single-kernel/,,https://github.com/canonical/mongo-single-kernel-library,PyPI,y,y,Used internally by the Data Charm Engineering team.
+data-platform-libs,team,https://charmhub.io/data-platform-libs/libraries,,https://github.com/canonical/data-platform-libs,Charmhub,y,y,Used internally by the Data Charm Engineering team.

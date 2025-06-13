@@ -33,7 +33,7 @@ exclude_also = [
 [tool.ruff]
 line-length = 99
 target-version = "py38"
-extend-exclude = ["__pycache__", "*.egg_info", "htmlcov", "_docs"]
+extend-exclude = ["__pycache__", "*.egg_info", "htmlcov", "_docs/.sphinx/", "_docs/conf.py"]
 
 # Ruff formatter configuration
 [tool.ruff.format]
