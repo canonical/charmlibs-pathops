@@ -23,3 +23,6 @@ package*.json
 __pycache__
 .idea/
 .vscode/
+
+# generated docs
+_docs/reference/non-relation-libs-table.rst
